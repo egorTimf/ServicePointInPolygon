@@ -8,17 +8,30 @@ public static class GeoJsonParser
 {
     public static (List<Polygon>, List<Point>) ParsePolygons(string geoJson)
     {
+        if (string.IsNullOrWhiteSpace(geoJson))
+            throw new ArgumentException("GeoJSON string is null or empty.", nameof(geoJson));
+        
         var reader = new GeoJsonReader();
         var polygons = new List<Polygon>();
         var points = new List<Point>();
         
-        var obj = JsonSerializer.Deserialize<object>(geoJson);
-
-        switch (obj)
+        object? obj;
+        
+        try
         {
-            case JsonElement element:
-                ParseElement(element, reader, polygons, points);
-                break;
+            obj = JsonSerializer.Deserialize<object>(geoJson);
+        }
+        catch (JsonException ex)
+        {
+            throw new FormatException("Input string is not a valid JSON.", ex);
+        }
+        
+        if (obj is JsonElement element) {
+            ParseElement(element, reader, polygons, points);
+        }
+        else
+        {
+            throw new NotImplementedException($"The type {obj?.GetType()} is not implemented.");
         }
 
         return (polygons, points);

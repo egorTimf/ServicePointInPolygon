@@ -115,16 +115,18 @@ public class GeoJsonParserTests
     }
 
     [TestMethod]
-    public void ParsePolygons_Should_Return_Empty_On_Invalid_Type()
+    public void ParsePolygons_Should_Throw_On_Unknown_Type()
     {
         var geoJson = @"{
-                ""type"": ""UnknownType""
-            }";
+            ""type"": ""UnknownType""
+        }";
 
-        var (polygons, points) = GeoJsonParser.ParsePolygons(geoJson);
+        var exception = Assert.ThrowsException<NotImplementedException>(() =>
+        {
+            GeoJsonParser.ParsePolygons(geoJson);
+        });
 
-        Assert.AreEqual(0, polygons.Count);
-        Assert.AreEqual(0, points.Count);
+        Assert.AreEqual("The type UnknownType is not implemented.", exception.Message);
     }
 
     [TestMethod]
@@ -136,5 +138,16 @@ public class GeoJsonParserTests
 
         Assert.AreEqual(0, polygons.Count);
         Assert.AreEqual(0, points.Count);
+    }
+    
+    [TestMethod]
+    public void ParsePolygons_Should_Throw_FormatException_On_Invalid_Json()
+    {
+        var invalidJson = "this is not json";
+
+        Assert.ThrowsException<FormatException>(() =>
+        {
+            GeoJsonParser.ParsePolygons(invalidJson);
+        });
     }
 }

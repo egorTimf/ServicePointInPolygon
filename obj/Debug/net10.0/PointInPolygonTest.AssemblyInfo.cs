@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PointInPolygonTest")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b9f6c9fa37fd03e56b9a3cb5355d7ac76c5aea2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+65d912500dbde8c4c42a6809800ac3a3fa8849d3")]
 [assembly: System.Reflection.AssemblyProductAttribute("PointInPolygonTest")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PointInPolygonTest")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
