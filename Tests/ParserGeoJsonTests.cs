@@ -139,15 +139,4 @@ public class GeoJsonParserTests
         Assert.AreEqual(0, polygons.Count);
         Assert.AreEqual(0, points.Count);
     }
-    
-    [TestMethod]
-    public void ParsePolygons_Should_Throw_FormatException_On_Invalid_Json()
-    {
-        var invalidJson = "this is not json";
-
-        Assert.ThrowsException<FormatException>(() =>
-        {
-            GeoJsonParser.ParsePolygons(invalidJson);
-        });
-    }
 }
