@@ -5,9 +5,9 @@ namespace PointInPolygonTest.Indexing;
 
 public class GridIndex(double cellSize)
 {
-    private readonly Dictionary<(int, int), List<Polygon>> _grid = new();
+    private readonly Dictionary<(int, int), HashSet<Polygon>> _grid = new();
 
-    public Dictionary<(int, int), List<Polygon>> GetGridDictionary() => _grid;
+    public Dictionary<(int, int), HashSet<Polygon>> GetGridDictionary() => _grid;
     private (int, int) GetCell(Point p)
     {
         return ((int)Math.Floor(p.X / cellSize),
