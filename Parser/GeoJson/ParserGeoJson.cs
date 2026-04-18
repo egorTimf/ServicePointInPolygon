@@ -1,59 +1,67 @@
-using NetTopologySuite.Features;
+using System.Text.Json;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
-using System.Text.Json;
 
-namespace PointInPolygonTest.Geometry
+namespace PointInPolygonTest.Parser.GeoJson;
+
+public static class GeoJsonParser
 {
-    public static class GeoJsonParser
+    public static (List<Polygon>, List<Point>) ParsePolygons(string geoJson)
     {
-        public static List<Polygon> ParsePolygons(string geoJson)
+        var reader = new GeoJsonReader();
+        var polygons = new List<Polygon>();
+        var points = new List<Point>();
+        
+        var obj = JsonSerializer.Deserialize<object>(geoJson);
+
+        switch (obj)
         {
-            var reader = new GeoJsonReader();
-            var result = new List<Polygon>();
-
-            var obj = JsonSerializer.Deserialize<object>(geoJson);
-
-            switch (obj)
-            {
-                case JsonElement element:
-                    ParseElement(element, reader, result);
-                    break;
-            }
-
-            return result;
+            case JsonElement element:
+                ParseElement(element, reader, polygons, points);
+                break;
         }
 
-        private static void ParseElement(JsonElement element, GeoJsonReader reader, List<Polygon> result)
+        return (polygons, points);
+    }
+
+    private static void ParseElement(JsonElement element, GeoJsonReader reader, List<Polygon> polygons, List<Point> points)
+    {
+        while (true)
         {
-            if (!element.TryGetProperty("type", out var typeProp))
-                return;
+            if (!element.TryGetProperty("type", out var typeProp)) return;
 
             var type = typeProp.GetString();
 
             switch (type)
             {
                 case "FeatureCollection":
-                    foreach (var feature in element.GetProperty("features").EnumerateArray())
-                    {
-                        ParseElement(feature, reader, result);
-                    }
+                    var features = element.GetProperty("features").EnumerateArray();
+                    foreach (var feature in features) ParseElement(feature, reader, polygons, points);
                     break;
 
                 case "Feature":
-                    ParseElement(element.GetProperty("geometry"), reader, result);
-                    break;
+                    element = element.GetProperty("geometry");
+                    continue;
 
                 case "Polygon":
                     var polygon = reader.Read<Polygon>(element.GetRawText());
-                    result.Add(polygon);
+                    polygons.Add(polygon);
+                    break;
+
+                case "Point":
+                    var point = reader.Read<Point>(element.GetRawText());
+                    points.Add(point);
                     break;
 
                 case "MultiPolygon":
                     var multi = reader.Read<MultiPolygon>(element.GetRawText());
-                    result.AddRange(multi.Geometries.Cast<Polygon>());
+                    polygons.AddRange(multi.Geometries.Cast<Polygon>());
                     break;
+                default:
+                    throw new NotImplementedException($"The type {type} is not implemented.");
             }
+
+            break;
         }
     }
 }
