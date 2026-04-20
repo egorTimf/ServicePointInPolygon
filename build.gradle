@@ -1,0 +1,70 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'  // Исправлено: Spring Boot 4.x еще не вышел
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+description = 'polygon-app'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Database (MySQL)
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // JTS (Java Topology Suite) для работы с геометрией
+    implementation 'org.locationtech.jts:jts-core:1.19.0'
+    implementation 'org.locationtech.jts.io:jts-io-common:1.19.0'
+
+    // OpenAPI / Swagger для документации API
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
+    // Lombok для уменьшения шаблонного кода
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Утилиты
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // H2 — встроенная БД для тестов и локального запуска (профиль local)
+    runtimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+bootJar {
+    archiveFileName = 'polygon-app.jar'
+    mainClass = 'com.example.demo.PolygonApplication'
+}
