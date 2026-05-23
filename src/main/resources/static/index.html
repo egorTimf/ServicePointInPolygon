@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polygon Editor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Unbounded:wght@300;600&display=swap');
+
+        :root {
+            --bg: #0a0c10;
+            --surface: #111318;
+            --surface2: #181c24;
+            --border: #1e2330;
+            --border2: #2a3045;
+            --accent: #00e5ff;
+            --accent2: #7c5cfc;
+            --accent3: #ff4d6d;
+            --accent4: #39d353;
+            --text: #e2e8f0;
+            --text2: #8892a4;
+            --text3: #4a5568;
+            --vertex: #00e5ff;
+            --vertex-first: #39d353;
+            --vertex-hover: #ff4d6d;
+            --poly-fill: rgba(0,229,255,0.07);
+            --poly-stroke: #00e5ff;
+            --poly-selected-fill: rgba(124,92,252,0.13);
+            --poly-selected-stroke: #7c5cfc;
+            --hit: rgba(57,211,83,0.18);
+            --miss: rgba(255,77,109,0.18);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: 48px 1fr;
+            grid-template-columns: 280px 1fr 300px;
+            overflow: hidden;
+        }
+
+        /* ── HEADER ── */
+        header {
+            grid-column: 1 / -1;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 24px;
+        }
+        .logo {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+        .logo span { color: var(--text3); font-weight: 300; }
+        .header-status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text2);
+            font-size: 11px;
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--text3);
+            transition: background 0.3s;
+        }
+        .status-dot.ok { background: var(--accent4); box-shadow: 0 0 6px var(--accent4); }
+        .status-dot.err { background: var(--accent3); }
+
+        /* ── LEFT PANEL ── */
+        .panel-left {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-section {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--text3);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        /* polygon list */
+        .poly-list {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border2) transparent;
+        }
+        .poly-item {
+            display: flex;
+            align-items: center;
+            padding: 9px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            gap: 10px;
+            transition: background 0.15s;
+            position: relative;
+        }
+        .poly-item:hover { background: var(--surface2); }
+        .poly-item.selected { background: rgba(0,229,255,0.06); }
+        .poly-item.selected::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 2px;
+            background: var(--accent);
+        }
+        .poly-color {
+            width: 10px; height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .poly-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 12px;
+        }
+        .poly-id {
+            font-size: 10px;
+            color: var(--text3);
+        }
+        .poly-del {
+            background: none;
+            border: none;
+            color: var(--text3);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            line-height: 1;
+            transition: color 0.15s, background 0.15s;
+            opacity: 0;
+        }
+        .poly-item:hover .poly-del { opacity: 1; }
+        .poly-del:hover { color: var(--accent3); background: rgba(255,77,109,0.1); }
+
+        /* add polygon */
+        .add-section { padding: 14px 16px; border-top: 1px solid var(--border); }
+        textarea.geojson-input {
+            width: 100%;
+            height: 90px;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 8px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            line-height: 1.5;
+        }
+        textarea.geojson-input:focus { border-color: var(--accent); }
+        textarea.geojson-input::placeholder { color: var(--text3); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 5px;
+            border: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .btn-primary:hover { filter: brightness(1.15); }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text2);
+            border: 1px solid var(--border2);
+        }
+        .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-danger {
+            background: rgba(255,77,109,0.12);
+            color: var(--accent3);
+            border: 1px solid rgba(255,77,109,0.25);
+        }
+        .btn-danger:hover { background: rgba(255,77,109,0.22); }
+
+        /* ── CANVAS AREA ── */
+        .canvas-area {
+            position: relative;
+            overflow: hidden;
+            background: var(--bg);
+            background-image:
+                    linear-gradient(rgba(30,35,48,0.5) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(30,35,48,0.5) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        canvas#main {
+            position: absolute;
+            inset: 0;
+            cursor: crosshair;
+        }
+        canvas#main.mode-pan { cursor: grab; }
+        canvas#main.mode-pan.dragging { cursor: grabbing; }
+        canvas#main.mode-select { cursor: default; }
+
+        .canvas-toolbar {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 2px;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 8px;
+            padding: 4px;
+            z-index: 10;
+        }
+        .tool-btn {
+            background: none;
+            border: none;
+            color: var(--text2);
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tool-btn:hover { background: var(--surface2); color: var(--text); }
+        .tool-btn.active { background: rgba(0,229,255,0.12); color: var(--accent); }
+
+        .canvas-hint {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 11px;
+            color: var(--text2);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .coords-display {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            font-size: 11px;
+            color: var(--text3);
+            background: var(--surface);
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            pointer-events: none;
+        }
+
+        /* ── RIGHT PANEL ── */
+        .panel-right {
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .right-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        .rtab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text3);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .rtab:hover { color: var(--text2); }
+        .rtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        .rtab-content { display: none; flex: 1; overflow-y: auto; flex-direction: column; }
+        .rtab-content.active { display: flex; }
+
+        /* vertex editor */
+        .vertex-list {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border2) transparent;
+        }
+        .vertex-row {
+            display: grid;
+            grid-template-columns: 28px 1fr 1fr 28px;
+            gap: 4px;
+            padding: 5px 12px;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s;
+        }
+        .vertex-row:hover { background: var(--surface2); }
+        .vertex-row.highlighted { background: rgba(0,229,255,0.07); }
+        .vertex-row.first-vertex { background: rgba(57,211,83,0.06); }
+        .vertex-idx {
+            font-size: 10px;
+            color: var(--text3);
+            text-align: right;
+        }
+        .vertex-input {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 4px 6px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .vertex-input:focus { border-color: var(--accent); }
+        .vertex-input:disabled { opacity: 0.4; cursor: not-allowed; }
+        .vertex-del-btn {
+            background: none;
+            border: none;
+            color: var(--text3);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 2px;
+            border-radius: 3px;
+            transition: color 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .vertex-del-btn:hover { color: var(--accent3); }
+        .vertex-del-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+        .vertex-actions {
+            padding: 10px 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+        }
+        .vertex-actions .btn { flex: 1; font-size: 10px; }
+
+        .no-selection {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text3);
+            gap: 10px;
+            font-size: 12px;
+        }
+        .no-selection svg { opacity: 0.2; }
+
+        /* check panel */
+        .check-section { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+        .check-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+        .coord-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+        .field-wrap { display: flex; flex-direction: column; gap: 3px; }
+        .field-label { font-size: 10px; color: var(--text3); }
+        .field-input {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            padding: 6px 8px;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.15s;
+        }
+        .field-input:focus { border-color: var(--accent); }
+
+        .check-results {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .check-result-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 11px;
+        }
+        .check-result-item.inside { border-color: rgba(57,211,83,0.3); background: rgba(57,211,83,0.06); }
+        .check-result-item.outside { border-color: rgba(255,77,109,0.2); background: rgba(255,77,109,0.04); }
+        .result-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .inside .result-dot { background: var(--accent4); box-shadow: 0 0 5px var(--accent4); }
+        .outside .result-dot { background: var(--accent3); }
+        .result-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .result-badge {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+        .inside .result-badge { background: rgba(57,211,83,0.15); color: var(--accent4); }
+        .outside .result-badge { background: rgba(255,77,109,0.1); color: var(--accent3); }
+
+        .batch-area {
+            padding: 10px 14px;
+            border-top: 1px solid var(--border);
+        }
+        textarea.batch-input {
+            width: 100%;
+            height: 80px;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 5px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 7px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            line-height: 1.5;
+        }
+        textarea.batch-input:focus { border-color: var(--accent2); }
+        textarea.batch-input::placeholder { color: var(--text3); }
+
+        /* toast */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 12px;
+            z-index: 1000;
+            transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+        #toast.success { border-color: rgba(57,211,83,0.4); color: var(--accent4); }
+        #toast.error { border-color: rgba(255,77,109,0.4); color: var(--accent3); }
+        #toast.info { border-color: rgba(0,229,255,0.3); color: var(--accent); }
+
+        /* modal */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 500;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 10px;
+            padding: 24px;
+            width: 360px;
+            max-width: 95vw;
+        }
+        .modal h3 {
+            font-family: 'Unbounded', sans-serif;
+            font-size: 13px;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+        .modal-btns { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+        /* ring selector */
+        .ring-selector {
+            display: flex;
+            gap: 4px;
+            padding: 10px 12px 6px;
+            flex-wrap: wrap;
+        }
+        .ring-btn {
+            font-size: 10px;
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border2);
+            background: none;
+            color: var(--text2);
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.15s;
+        }
+        .ring-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.08); }
+
+        .empty-state {
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text3);
+            font-size: 11px;
+            line-height: 1.8;
+        }
+
+        /* point marker on canvas — drawn in JS */
+
+        /* ops */
+        .op-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+        .op-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            color: var(--text2);
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 9px 6px 7px;
+            text-align: center;
+            transition: all 0.15s;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .op-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.06); }
+        .op-btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(124,92,252,0.1); }
+        .op-btn .op-icon { font-size: 18px; line-height: 1; }
+        .op-select-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .op-select-row select {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 6px 8px;
+            outline: none;
+            cursor: pointer;
+        }
+        .op-select-row select:focus { border-color: var(--accent2); }
+        .op-result-box {
+            margin: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border2);
+            overflow: hidden;
+        }
+        .op-result-header {
+            padding: 8px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .op-result-header.intersects { background: rgba(57,211,83,0.08); color: var(--accent4); border-bottom: 1px solid rgba(57,211,83,0.2); }
+        .op-result-header.no-intersect { background: rgba(255,77,109,0.06); color: var(--accent3); border-bottom: 1px solid rgba(255,77,109,0.15); }
+        .op-result-header.neutral { background: rgba(124,92,252,0.08); color: var(--accent2); border-bottom: 1px solid rgba(124,92,252,0.2); }
+        .op-result-body { padding: 10px 12px; font-size: 11px; color: var(--text2); line-height: 1.8; }
+        .op-result-body strong { color: var(--text); }
+        .op-geojson {
+            margin: 0 14px 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 10px;
+            color: var(--text3);
+            max-height: 120px;
+            overflow-y: auto;
+            word-break: break-all;
+            line-height: 1.5;
+            display: none;
+        }
+        .op-geojson.visible { display: block; }
+        .op-venn {
+            display: flex; align-items: center; justify-content: center;
+            padding: 14px 0 6px;
+            gap: 0;
+            position: relative;
+            height: 70px;
+        }
+        .venn-circle {
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            position: absolute;
+            opacity: 0.55;
+            transition: all 0.3s;
+        }
+        .venn-a { background: #00e5ff; left: calc(50% - 42px); }
+        .venn-b { background: #7c5cfc; left: calc(50% - 18px); }
+        .venn-label {
+            position: absolute; font-size: 10px; font-weight: 700; color: #fff; pointer-events: none;
+        }
+        .venn-label-a { left: calc(50% - 52px); top: 50%; transform: translateY(-50%); }
+        .venn-label-b { left: calc(50% + 22px); top: 50%; transform: translateY(-50%); }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">POLY<span>EDITOR</span></div>
+    <div style="color:var(--text3);font-size:11px;">localhost:8080/polygons</div>
+    <div class="header-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">connecting...</span>
+    </div>
+</header>
+
+<!-- LEFT PANEL -->
+<div class="panel-left">
+    <div class="panel-section">
+        <div class="panel-label">Полигоны (<span id="polyCount">0</span>)</div>
+        <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost" style="flex:1;font-size:10px;" onclick="loadPolygons()">↻ Обновить</button>
+            <button class="btn btn-ghost" style="flex:1;font-size:10px;" onclick="fitAll()">⊡ Вписать</button>
+        </div>
+    </div>
+
+    <div class="poly-list" id="polyList">
+        <div class="empty-state">Загрузка полигонов...</div>
+    </div>
+
+    <div class="add-section">
+        <div class="panel-label">Добавить полигон</div>
+        <textarea class="geojson-input" id="geoJsonInput" placeholder='{"type":"Polygon","coordinates":[[[30,60],[31,60],[31,61],[30,61],[30,60]]]}'></textarea>
+        <button class="btn btn-primary" onclick="addPolygon()">+ Добавить в базу</button>
+    </div>
+</div>
+
+<!-- CANVAS -->
+<div class="canvas-area" id="canvasArea">
+    <canvas id="main"></canvas>
+
+    <div class="canvas-toolbar">
+        <button class="tool-btn active" id="toolSelect" onclick="setTool('select')" title="Выбор / перетаскивание вершин">
+            ✦ Выбор
+        </button>
+        <button class="tool-btn" id="toolPan" onclick="setTool('pan')" title="Панорамирование">
+            ✥ Пан
+        </button>
+        <button class="tool-btn" id="toolCheck" onclick="setTool('check')" title="Кликнуть для проверки точки">
+            ◎ Точка
+        </button>
+    </div>
+
+    <div class="canvas-hint" id="canvasHint">Выберите полигон из списка слева</div>
+    <div class="coords-display" id="coordsDisplay">x: — y: —</div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="panel-right">
+    <div class="right-tabs">
+        <div class="rtab active" onclick="switchTab('vertices')">Вершины</div>
+        <div class="rtab" onclick="switchTab('check')">Проверка</div>
+        <div class="rtab" onclick="switchTab('ops')">Операции</div>
+    </div>
+
+    <!-- VERTICES TAB -->
+    <div class="rtab-content active" id="tab-vertices">
+        <div id="noSelMsg" class="no-selection">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                <rect x="8" y="8" width="24" height="24" rx="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="8" cy="8" r="3" fill="currentColor"/>
+                <circle cx="32" cy="8" r="3" fill="currentColor"/>
+                <circle cx="32" cy="32" r="3" fill="currentColor"/>
+                <circle cx="8" cy="32" r="3" fill="currentColor"/>
+            </svg>
+            Выберите полигон<br>для редактирования
+        </div>
+        <div id="vertexEditor" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+            <div style="padding:10px 12px 6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+                <span style="font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="editorPolyName">—</span>
+                <span style="font-size:10px;color:var(--text3);" id="editorVertexCount"></span>
+            </div>
+            <div class="ring-selector" id="ringSelectorWrap"></div>
+            <div class="vertex-list" id="vertexList"></div>
+            <div class="vertex-actions">
+                <button class="btn btn-ghost" style="font-size:10px;" onclick="insertVertexAfterSelected()">+ Вставить</button>
+                <button class="btn btn-ghost" style="font-size:10px;" onclick="applyAllVertices()">✓ Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHECK TAB -->
+    <div class="rtab-content" id="tab-check">
+        <div class="check-section">
+            <div class="check-label">Одиночная точка</div>
+            <div class="coord-row">
+                <div class="field-wrap">
+                    <div class="field-label">X (долгота)</div>
+                    <input type="number" class="field-input" id="checkX" placeholder="30.5" step="any">
+                </div>
+                <div class="field-wrap">
+                    <div class="field-label">Y (широта)</div>
+                    <input type="number" class="field-input" id="checkY" placeholder="60.1" step="any">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="checkSinglePoint()" style="width:100%;font-size:11px;">
+                ◎ Проверить во всех полигонах
+            </button>
+        </div>
+
+        <div class="batch-area">
+            <div class="check-label" style="margin-bottom:6px;">Массив точек (GeoJSON)</div>
+            <textarea class="batch-input" id="batchInput" placeholder='{"type":"MultiPoint","coordinates":[[30.5,60.1],[31,60.5]]}'></textarea>
+            <button class="btn btn-ghost" style="width:100%;margin-top:6px;font-size:10px;" onclick="checkBatch()">↳ Проверить массив</button>
+        </div>
+
+        <div class="check-results" id="checkResults">
+            <div class="empty-state">Нажмите «Проверить»<br>или кликните на карте<br>в режиме ◎ Точка</div>
+        </div>
+    </div>
+
+    <!-- OPS TAB -->
+    <div class="rtab-content" id="tab-ops">
+        <div class="panel-section" style="padding:12px 14px 10px;">
+            <div class="panel-label">Выберите полигоны</div>
+            <div class="op-select-row">
+                <span style="font-size:10px;color:var(--text3);width:14px;">A</span>
+                <select id="opPolyA" onchange="updateVenn()"></select>
+            </div>
+            <div class="op-select-row">
+                <span style="font-size:10px;color:var(--text3);width:14px;">B</span>
+                <select id="opPolyB" onchange="updateVenn()"></select>
+            </div>
+            <div class="op-venn">
+                <div class="venn-circle venn-a" id="vennA"></div>
+                <div class="venn-circle venn-b" id="vennB"></div>
+                <span class="venn-label venn-label-a" id="vennLabelA">A</span>
+                <span class="venn-label venn-label-b" id="vennLabelB">B</span>
+            </div>
+        </div>
+        <div class="panel-section" style="padding:12px 14px 10px;">
+            <div class="panel-label">Операция</div>
+            <div class="op-btn-grid">
+                <button class="op-btn active" id="opBtn-intersection" onclick="selectOp('intersection')">
+                    <span class="op-icon">∩</span>Пересечение
+                </button>
+                <button class="op-btn" id="opBtn-union" onclick="selectOp('union')">
+                    <span class="op-icon">∪</span>Объединение
+                </button>
+                <button class="op-btn" id="opBtn-difference" onclick="selectOp('difference')">
+                    <span class="op-icon">A∖B</span>Разность A−B
+                </button>
+                <button class="op-btn" id="opBtn-symDifference" onclick="selectOp('symDifference')">
+                    <span class="op-icon">△</span>Симм. разность
+                </button>
+            </div>
+            <button class="btn btn-primary" style="margin-top:10px;" onclick="runOperation()">
+                ▶ Выполнить
+            </button>
+        </div>
+        <div id="opResultWrap" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
+            <div class="empty-state" id="opEmptyState">Выберите два полигона<br>и нажмите «Выполнить»</div>
+            <div id="opResultBox" class="op-result-box" style="display:none;margin:10px 14px 0;">
+                <div class="op-result-header" id="opResultHeader"></div>
+                <div class="op-result-body" id="opResultBody"></div>
+            </div>
+            <div id="opGeoJson" class="op-geojson"></div>
+            <div id="opResultActions" style="display:none;padding:0 14px 10px;display:none;gap:6px;flex-direction:column;">
+                <button class="btn btn-ghost" style="font-size:10px;width:100%;" onclick="toggleOpGeoJson()">{ } Показать GeoJSON</button>
+                <button class="btn btn-primary" style="font-size:10px;width:100%;" onclick="saveOpResult()">↓ Сохранить в базу</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: add vertex -->
+<div class="modal-overlay" id="addVertexModal">
+    <div class="modal">
+        <h3>Добавить вершину</h3>
+        <div class="coord-row">
+            <div class="field-wrap">
+                <div class="field-label">X</div>
+                <input type="number" class="field-input" id="newVx" placeholder="30.5" step="any">
+            </div>
+            <div class="field-wrap">
+                <div class="field-label">Y</div>
+                <input type="number" class="field-input" id="newVy" placeholder="60.1" step="any">
+            </div>
+        </div>
+        <div class="field-wrap" style="margin-top:8px;">
+            <div class="field-label">После вершины с индексом</div>
+            <input type="number" class="field-input" id="newVAfter" min="0" value="0">
+        </div>
+        <div class="modal-btns">
+            <button class="btn btn-ghost" onclick="closeModal('addVertexModal')">Отмена</button>
+            <button class="btn btn-primary" onclick="confirmAddVertex()">Добавить</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+    const API = 'http://localhost:8080/polygons';
+
+    // ── STATE ──
+    const state = {
+        polygons: [],          // {id, name, coords, color}
+        selected: null,        // polygon id
+        tool: 'select',
+        camera: { x: 0, y: 0, zoom: 1 },
+        dragging: false,
+        dragStart: null,
+        hoveredVertex: null,   // {polyId, ring, idx}
+        draggingVertex: null,  // {polyId, ring, idx}
+        checkPoint: null,      // {x,y} world coords
+        currentRing: 0,
+        checkResults: [],
+    };
+
+    const COLORS = ['#00e5ff','#7c5cfc','#ff4d6d','#39d353','#ff9f43','#fd79a8','#74b9ff','#55efc4'];
+    let colorIdx = 0;
+
+    // ops state — declared here so draw() and toast() can access them
+    let currentOp = 'intersection';
+    let opResultGeoJson = null;
+    let opResultGeom = null;
+    let toastTimer;
+
+    // ── CANVAS SETUP ──
+    const canvas = document.getElementById('main');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+        const area = document.getElementById('canvasArea');
+        canvas.width = area.clientWidth;
+        canvas.height = area.clientHeight;
+        draw();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ── COORD TRANSFORMS ──
+    function worldToScreen(wx, wy) {
+        return {
+            x: (wx - state.camera.x) * state.camera.zoom + canvas.width / 2,
+            y: -(wy - state.camera.y) * state.camera.zoom + canvas.height / 2,
+        };
+    }
+    function screenToWorld(sx, sy) {
+        return {
+            x: (sx - canvas.width / 2) / state.camera.zoom + state.camera.x,
+            y: -((sy - canvas.height / 2) / state.camera.zoom - state.camera.y),
+        };
+    }
+
+    // ── API ──
+    async function apiFetch(url, opts = {}) {
+        const res = await fetch(API + url, {
+            headers: { 'Content-Type': 'application/json' },
+            ...opts,
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || res.statusText);
+        }
+        if (res.status === 204) return null;
+        return res.json();
+    }
+
+    async function loadPolygons() {
+        try {
+            const data = await apiFetch('/');
+            colorIdx = 0;
+            state.polygons = data.map(e => ({
+                id: e.id,
+                name: e.name || `Полигон #${e.id}`,
+                coords: parseCoordsJson(e.coordsJson || e.polygonData),
+                color: COLORS[colorIdx++ % COLORS.length],
+                entity: e,
+            }));
+            setStatus(true);
+            renderPolyList();
+            fitAll();
+        } catch (e) {
+            setStatus(false);
+            toast('Ошибка загрузки: ' + e.message, 'error');
+        }
+    }
+
+    function parseCoordsJson(json) {
+        if (!json) return [];
+        try {
+            const obj = JSON.parse(json);
+            // support {type:'Polygon',coordinates:...} or {coordinates:...}
+            const coords = obj.coordinates || obj;
+            if (!Array.isArray(coords)) return [];
+            // rings of [x,y]
+            return coords; // [ [[x,y],...], ... ]
+        } catch { return []; }
+    }
+
+    async function addPolygon() {
+        const raw = document.getElementById('geoJsonInput').value.trim();
+        if (!raw) { toast('Введите GeoJSON', 'error'); return; }
+        try {
+            JSON.parse(raw); // validate
+            const data = await apiFetch('/', { method: 'POST', body: raw });
+            toast(`Добавлено: id=[${data.ids.join(',')}]`, 'success');
+            document.getElementById('geoJsonInput').value = '';
+            await loadPolygons();
+        } catch (e) {
+            toast('Ошибка: ' + e.message, 'error');
+        }
+    }
+
+    async function deletePolygon(id) {
+        try {
+            await apiFetch(`/${id}`, { method: 'DELETE' });
+            if (state.selected === id) { state.selected = null; renderVertexEditor(); }
+            toast('Полигон удалён', 'info');
+            await loadPolygons();
+        } catch (e) {
+            toast('Ошибка удаления: ' + e.message, 'error');
+        }
+    }
+
+    // ── VERTEX OPERATIONS ──
+    async function moveVertex(polyId, ringIndex, vertexIndex, x, y) {
+        await apiFetch(`/${polyId}/vertex/move`, {
+            method: 'PUT',
+            body: JSON.stringify({ ringIndex, vertexIndex, x, y }),
+        });
+        await reloadOne(polyId);
+    }
+
+    async function addVertex(polyId, ringIndex, afterIndex, x, y) {
+        await apiFetch(`/${polyId}/vertex/add`, {
+            method: 'POST',
+            body: JSON.stringify({ ringIndex, afterIndex, x, y }),
+        });
+        await reloadOne(polyId);
+    }
+
+    async function removeVertex(polyId, ringIndex, vertexIndex) {
+        await apiFetch(`/${polyId}/vertex/${ringIndex}/${vertexIndex}`, { method: 'DELETE' });
+        await reloadOne(polyId);
+    }
+
+    async function reloadOne(polyId) {
+        const data = await apiFetch('/');
+        const fresh = data.find(e => e.id === polyId);
+        if (!fresh) return;
+        const poly = state.polygons.find(p => p.id === polyId);
+        if (poly) {
+            poly.coords = parseCoordsJson(fresh.coordsJson || fresh.polygonData);
+            poly.entity = fresh;
+        }
+        if (state.selected === polyId) renderVertexEditor();
+        draw();
+    }
+
+    // ── CHECK ──
+    async function checkSinglePoint() {
+        const x = parseFloat(document.getElementById('checkX').value);
+        const y = parseFloat(document.getElementById('checkY').value);
+        if (isNaN(x) || isNaN(y)) { toast('Введите корректные координаты', 'error'); return; }
+        state.checkPoint = { x, y };
+        await runCheckAll(x, y);
+        switchTab('check');
+        draw();
+    }
+
+    async function checkBatch() {
+        const raw = document.getElementById('batchInput').value.trim();
+        if (!raw) { toast('Введите GeoJSON MultiPoint', 'error'); return; }
+        try {
+            const obj = JSON.parse(raw);
+            const pts = obj.coordinates || obj;
+            const resultsEl = document.getElementById('checkResults');
+            resultsEl.innerHTML = '';
+            for (const [px, py] of pts) {
+                state.checkPoint = { x: px, y: py };
+                const results = await runCheckAll(px, py, true);
+                const hdr = document.createElement('div');
+                hdr.style.cssText = 'font-size:10px;color:var(--text3);padding:4px 2px;border-bottom:1px solid var(--border);margin-bottom:4px;';
+                hdr.textContent = `Точка (${px.toFixed(4)}, ${py.toFixed(4)})`;
+                resultsEl.appendChild(hdr);
+                results.forEach(r => resultsEl.appendChild(buildResultEl(r)));
+            }
+            draw();
+        } catch (e) {
+            toast('Ошибка: ' + e.message, 'error');
+        }
+    }
+
+    async function runCheckAll(x, y, silent = false) {
+        const ids = state.polygons.map(p => p.id);
+        if (!ids.length) { if (!silent) toast('Нет полигонов', 'error'); return []; }
+        const data = await apiFetch('/check-multiple', {
+            method: 'POST',
+            body: JSON.stringify({ polygonIds: ids, x, y }),
+        });
+        state.checkResults = data;
+        if (!silent) {
+            const resultsEl = document.getElementById('checkResults');
+            resultsEl.innerHTML = '';
+            data.forEach(r => resultsEl.appendChild(buildResultEl(r)));
+            if (!data.length) resultsEl.innerHTML = '<div class="empty-state">Нет результатов</div>';
+        }
+        return data;
+    }
+
+    function buildResultEl(r) {
+        const poly = state.polygons.find(p => p.id === r.polygonId);
+        const name = poly ? poly.name : `#${r.polygonId}`;
+        const div = document.createElement('div');
+        div.className = 'check-result-item ' + (r.inside ? 'inside' : 'outside');
+        div.innerHTML = `
+    <div class="result-dot"></div>
+    <div class="result-name">${name}</div>
+    <div class="result-badge">${r.inside ? 'ВНУТРИ' : 'СНАРУЖИ'}</div>`;
+        return div;
+    }
+
+    // ── POLY LIST ──
+    function renderPolyList() {
+        const el = document.getElementById('polyList');
+        document.getElementById('polyCount').textContent = state.polygons.length;
+        if (!state.polygons.length) {
+            el.innerHTML = '<div class="empty-state">Полигонов нет.<br>Добавьте первый ниже.</div>';
+            return;
+        }
+        el.innerHTML = '';
+        state.polygons.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'poly-item' + (state.selected === p.id ? ' selected' : '');
+            div.dataset.id = p.id;
+            div.innerHTML = `
+      <div class="poly-color" style="background:${p.color}"></div>
+      <div class="poly-name">${p.name}</div>
+      <div class="poly-id">#${p.id}</div>
+      <button class="poly-del" title="Удалить" onclick="event.stopPropagation();deletePolygon(${p.id})">✕</button>`;
+            div.addEventListener('click', () => selectPolygon(p.id));
+            el.appendChild(div);
+        });
+    }
+
+    function selectPolygon(id) {
+        state.selected = id;
+        state.currentRing = 0;
+        renderPolyList();
+        renderVertexEditor();
+        draw();
+        // scroll selected into view
+        const el = document.querySelector(`.poly-item[data-id="${id}"]`);
+        if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+
+    // ── VERTEX EDITOR ──
+    function renderVertexEditor() {
+        const noSel = document.getElementById('noSelMsg');
+        const editor = document.getElementById('vertexEditor');
+        if (!state.selected) {
+            noSel.style.display = '';
+            editor.style.display = 'none';
+            return;
+        }
+        const poly = state.polygons.find(p => p.id === state.selected);
+        if (!poly || !poly.coords.length) {
+            noSel.style.display = '';
+            editor.style.display = 'none';
+            return;
+        }
+        noSel.style.display = 'none';
+        editor.style.display = 'flex';
+
+        document.getElementById('editorPolyName').textContent = poly.name;
+
+        // ring tabs
+        const rings = poly.coords;
+        const ringSel = document.getElementById('ringSelectorWrap');
+        if (rings.length <= 1) {
+            ringSel.style.display = 'none';
+        } else {
+            ringSel.style.display = 'flex';
+            ringSel.innerHTML = rings.map((_, i) =>
+                `<button class="ring-btn${state.currentRing === i ? ' active' : ''}" onclick="selectRing(${i})">${i === 0 ? 'Внешнее' : `Дыра ${i}`}</button>`
+            ).join('');
+        }
+
+        const ring = rings[state.currentRing] || [];
+        // last = duplicate of first; show all but last
+        const uniqueVerts = ring.slice(0, ring.length - 1);
+        document.getElementById('editorVertexCount').textContent = `${uniqueVerts.length} вершин`;
+
+        const list = document.getElementById('vertexList');
+        list.innerHTML = '';
+        uniqueVerts.forEach((pt, i) => {
+            const row = document.createElement('div');
+            row.className = 'vertex-row' + (i === 0 ? ' first-vertex' : '');
+            row.dataset.idx = i;
+            const isFirst = i === 0;
+            row.innerHTML = `
+      <div class="vertex-idx">${isFirst ? '◉' : i}</div>
+      <input class="vertex-input" type="number" step="any" value="${pt[0].toFixed(6)}" data-vi="${i}" data-axis="x">
+      <input class="vertex-input" type="number" step="any" value="${pt[1].toFixed(6)}" data-vi="${i}" data-axis="y">
+      <button class="vertex-del-btn" ${uniqueVerts.length <= 3 ? 'disabled' : ''} onclick="deleteVertexClick(${i})" title="Удалить">✕</button>`;
+            // highlight on hover
+            row.addEventListener('mouseenter', () => { state.hoveredVertex = { ring: state.currentRing, idx: i }; draw(); });
+            row.addEventListener('mouseleave', () => { state.hoveredVertex = null; draw(); });
+            list.appendChild(row);
+        });
+    }
+
+    function selectRing(i) {
+        state.currentRing = i;
+        renderVertexEditor();
+    }
+
+    async function deleteVertexClick(idx) {
+        try {
+            await removeVertex(state.selected, state.currentRing, idx);
+            toast('Вершина удалена', 'info');
+            renderVertexEditor();
+        } catch (e) {
+            toast('Ошибка: ' + e.message, 'error');
+        }
+    }
+
+    async function applyAllVertices() {
+        const poly = state.polygons.find(p => p.id === state.selected);
+        if (!poly) return;
+        const inputs = document.querySelectorAll('#vertexList .vertex-row');
+        let changed = 0;
+        const ring = poly.coords[state.currentRing];
+        const uniqueCount = ring.length - 1;
+        for (const row of inputs) {
+            const i = parseInt(row.dataset.idx);
+            if (i >= uniqueCount) continue;
+            const xIn = row.querySelector('[data-axis="x"]');
+            const yIn = row.querySelector('[data-axis="y"]');
+            const nx = parseFloat(xIn.value);
+            const ny = parseFloat(yIn.value);
+            if (isNaN(nx) || isNaN(ny)) continue;
+            if (Math.abs(nx - ring[i][0]) > 1e-9 || Math.abs(ny - ring[i][1]) > 1e-9) {
+                try {
+                    await moveVertex(state.selected, state.currentRing, i, nx, ny);
+                    changed++;
+                } catch (e) {
+                    toast('Ошибка вершины ' + i + ': ' + e.message, 'error');
+                }
+            }
+        }
+        if (changed) toast(`Сохранено изменений: ${changed}`, 'success');
+        else toast('Изменений нет', 'info');
+    }
+
+    function insertVertexAfterSelected() {
+        const poly = state.polygons.find(p => p.id === state.selected);
+        if (!poly) return;
+        const ring = poly.coords[state.currentRing] || [];
+        const maxAfter = ring.length - 2;
+        document.getElementById('newVAfter').max = maxAfter;
+        document.getElementById('newVAfter').value = 0;
+        document.getElementById('newVx').value = '';
+        document.getElementById('newVy').value = '';
+        openModal('addVertexModal');
+    }
+
+    async function confirmAddVertex() {
+        const x = parseFloat(document.getElementById('newVx').value);
+        const y = parseFloat(document.getElementById('newVy').value);
+        const after = parseInt(document.getElementById('newVAfter').value);
+        if (isNaN(x) || isNaN(y) || isNaN(after)) { toast('Заполните все поля', 'error'); return; }
+        try {
+            await addVertex(state.selected, state.currentRing, after, x, y);
+            toast('Вершина добавлена', 'success');
+            closeModal('addVertexModal');
+            renderVertexEditor();
+        } catch (e) {
+            toast('Ошибка: ' + e.message, 'error');
+        }
+    }
+
+    // ── CANVAS DRAWING ──
+    function draw() {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        state.polygons.forEach(poly => {
+            const isSel = poly.id === state.selected;
+            drawPolygon(poly, isSel);
+        });
+
+        // op result overlay
+        if (opResultGeom && opResultGeom.length) {
+            opResultGeom.forEach(ringSet => {
+                if (!Array.isArray(ringSet)) return;
+                ringSet.forEach((ring, ri) => {
+                    if (!ring || ring.length < 2) return;
+                    ctx.save();
+                    ctx.beginPath();
+                    const fp = worldToScreen(ring[0][0], ring[0][1]);
+                    ctx.moveTo(fp.x, fp.y);
+                    for (let i = 1; i < ring.length; i++) {
+                        const p = worldToScreen(ring[i][0], ring[i][1]);
+                        ctx.lineTo(p.x, p.y);
+                    }
+                    ctx.closePath();
+                    if (ri === 0) {
+                        ctx.fillStyle = 'rgba(255,220,50,0.18)';
+                        ctx.fill('evenodd');
+                    }
+                    ctx.strokeStyle = '#ffe033';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([6, 3]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.restore();
+                });
+            });
+        }
+
+        // check point marker
+        if (state.checkPoint) {
+            const { x: sx, y: sy } = worldToScreen(state.checkPoint.x, state.checkPoint.y);
+            const inside = state.checkResults.find(r => r.polygonId === state.selected && r.inside);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.fill();
+            ctx.strokeStyle = inside ? '#39d353' : '#ff4d6d';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+            ctx.fillStyle = inside ? '#39d353' : '#ff4d6d';
+            ctx.fill();
+            // crosshair
+            ctx.strokeStyle = inside ? '#39d353' : '#ff4d6d';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath(); ctx.moveTo(sx - 14, sy); ctx.lineTo(sx + 14, sy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(sx, sy - 14); ctx.lineTo(sx, sy + 14); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+    }
+
+    function drawPolygon(poly, selected) {
+        if (!poly.coords.length) return;
+        const color = poly.color;
+
+        poly.coords.forEach((ring, ri) => {
+            if (ring.length < 2) return;
+            ctx.save();
+            ctx.beginPath();
+            const first = worldToScreen(ring[0][0], ring[0][1]);
+            ctx.moveTo(first.x, first.y);
+            for (let i = 1; i < ring.length; i++) {
+                const p = worldToScreen(ring[i][0], ring[i][1]);
+                ctx.lineTo(p.x, p.y);
+            }
+            ctx.closePath();
+
+            if (ri === 0) {
+                ctx.fillStyle = selected
+                    ? 'rgba(124,92,252,0.13)'
+                    : hexAlpha(color, 0.07);
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = selected ? '#7c5cfc' : color;
+            ctx.lineWidth = selected ? 2 : 1.5;
+            if (!selected) ctx.globalAlpha = 0.7;
+            ctx.stroke();
+            ctx.restore();
+
+            // vertices (only for selected)
+            if (selected) {
+                const uniqueCount = ring.length - 1;
+                for (let i = 0; i < uniqueCount; i++) {
+                    const p = worldToScreen(ring[i][0], ring[i][1]);
+                    const isFirst = i === 0;
+                    const isHov = state.hoveredVertex &&
+                        state.hoveredVertex.ring === ri && state.hoveredVertex.idx === i;
+                    const isDrag = state.draggingVertex &&
+                        state.draggingVertex.ring === ri && state.draggingVertex.idx === i;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, isFirst ? 6 : (isHov || isDrag ? 6 : 4), 0, Math.PI * 2);
+                    ctx.fillStyle = isDrag ? '#ffffff'
+                        : isFirst ? '#39d353'
+                            : isHov ? '#ff4d6d'
+                                : '#00e5ff';
+                    ctx.fill();
+                    ctx.strokeStyle = '#0a0c10';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        });
+
+        // label
+        if (poly.coords[0] && poly.coords[0].length > 0) {
+            const cx = poly.coords[0].reduce((s, p) => s + p[0], 0) / poly.coords[0].length;
+            const cy = poly.coords[0].reduce((s, p) => s + p[1], 0) / poly.coords[0].length;
+            const { x, y } = worldToScreen(cx, cy);
+            ctx.save();
+            ctx.font = `500 11px 'JetBrains Mono', monospace`;
+            ctx.fillStyle = selected ? '#7c5cfc' : hexAlpha(color, 0.9);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(poly.name, x, y);
+            ctx.restore();
+        }
+    }
+
+    function hexAlpha(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    // ── CAMERA / INPUT ──
+    function fitAll() {
+        if (!state.polygons.length) { state.camera = { x: 0, y: 0, zoom: 1 }; draw(); return; }
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        state.polygons.forEach(p => p.coords.forEach(ring =>
+            ring.forEach(pt => {
+                minX = Math.min(minX, pt[0]); maxX = Math.max(maxX, pt[0]);
+                minY = Math.min(minY, pt[1]); maxY = Math.max(maxY, pt[1]);
+            })
+        ));
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        const dx = maxX - minX || 1, dy = maxY - minY || 1;
+        const pad = 0.85;
+        const zoom = Math.min(canvas.width / dx, canvas.height / dy) * pad;
+        state.camera = { x: cx, y: cy, zoom };
+        draw();
+    }
+
+    let panStart = null;
+    let panCamStart = null;
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        state.camera.zoom *= factor;
+        draw();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', e => {
+        const { x, y } = screenToWorld(e.offsetX, e.offsetY);
+
+        if (state.tool === 'check') {
+            state.checkPoint = { x, y };
+            document.getElementById('checkX').value = x.toFixed(6);
+            document.getElementById('checkY').value = y.toFixed(6);
+            runCheckAll(x, y);
+            switchTab('check');
+            draw();
+            return;
+        }
+
+        if (state.tool === 'pan') {
+            panStart = { sx: e.offsetX, sy: e.offsetY };
+            panCamStart = { ...state.camera };
+            canvas.classList.add('dragging');
+            return;
+        }
+
+        // select tool — check vertex drag
+        if (state.selected) {
+            const poly = state.polygons.find(p => p.id === state.selected);
+            if (poly) {
+                for (let ri = 0; ri < poly.coords.length; ri++) {
+                    const ring = poly.coords[ri];
+                    const uniqueCount = ring.length - 1;
+                    for (let vi = 0; vi < uniqueCount; vi++) {
+                        const sp = worldToScreen(ring[vi][0], ring[vi][1]);
+                        const dist = Math.hypot(e.offsetX - sp.x, e.offsetY - sp.y);
+                        if (dist < 8) {
+                            state.draggingVertex = { polyId: poly.id, ring: ri, idx: vi };
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // click to select polygon
+        for (const poly of [...state.polygons].reverse()) {
+            if (isPointInPoly({ x, y }, poly)) {
+                selectPolygon(poly.id);
+                return;
+            }
+        }
+        state.selected = null;
+        renderPolyList();
+        renderVertexEditor();
+        draw();
+    });
+
+    canvas.addEventListener('mousemove', e => {
+        const w = screenToWorld(e.offsetX, e.offsetY);
+        document.getElementById('coordsDisplay').textContent =
+            `x: ${w.x.toFixed(4)}  y: ${w.y.toFixed(4)}`;
+
+        if (state.tool === 'pan' && panStart) {
+            const dx = (e.offsetX - panStart.sx) / state.camera.zoom;
+            const dy = (e.offsetY - panStart.sy) / state.camera.zoom;
+            state.camera.x = panCamStart.x - dx;
+            state.camera.y = panCamStart.y + dy;
+            draw();
+            return;
+        }
+
+        if (state.draggingVertex) {
+            const dv = state.draggingVertex;
+            const poly = state.polygons.find(p => p.id === dv.polyId);
+            if (poly) {
+                poly.coords[dv.ring][dv.idx][0] = w.x;
+                poly.coords[dv.ring][dv.idx][1] = w.y;
+                // sync close vertex
+                const ring = poly.coords[dv.ring];
+                if (dv.idx === 0) {
+                    ring[ring.length - 1][0] = w.x;
+                    ring[ring.length - 1][1] = w.y;
+                }
+                draw();
+            }
+            return;
+        }
+
+        // hover vertex detection
+        if (state.tool === 'select' && state.selected) {
+            const poly = state.polygons.find(p => p.id === state.selected);
+            let found = null;
+            if (poly) {
+                outer: for (let ri = 0; ri < poly.coords.length; ri++) {
+                    const ring = poly.coords[ri];
+                    for (let vi = 0; vi < ring.length - 1; vi++) {
+                        const sp = worldToScreen(ring[vi][0], ring[vi][1]);
+                        if (Math.hypot(e.offsetX - sp.x, e.offsetY - sp.y) < 8) {
+                            found = { ring: ri, idx: vi };
+                            break outer;
+                        }
+                    }
+                }
+            }
+            state.hoveredVertex = found;
+            draw();
+        }
+    });
+
+    canvas.addEventListener('mouseup', async e => {
+        canvas.classList.remove('dragging');
+        panStart = null;
+
+        if (state.draggingVertex) {
+            const dv = state.draggingVertex;
+            const w = screenToWorld(e.offsetX, e.offsetY);
+            state.draggingVertex = null;
+            try {
+                await moveVertex(dv.polyId, dv.ring, dv.idx, w.x, w.y);
+                toast('Вершина перемещена', 'success');
+            } catch (ex) {
+                toast('Ошибка: ' + ex.message, 'error');
+                await reloadOne(dv.polyId);
+            }
+        }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        state.hoveredVertex = null;
+        panStart = null;
+        draw();
+    });
+
+    // simple point-in-polygon for click selection (canvas coords)
+    function isPointInPoly(pt, poly) {
+        if (!poly.coords[0]) return false;
+        const ring = poly.coords[0];
+        let inside = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const xi = ring[i][0], yi = ring[i][1];
+            const xj = ring[j][0], yj = ring[j][1];
+            if ((yi > pt.y) !== (yj > pt.y) && pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi)
+                inside = !inside;
+        }
+        return inside;
+    }
+
+    // ── TOOLS ──
+    function setTool(t) {
+        state.tool = t;
+        ['select', 'pan', 'check'].forEach(name => {
+            document.getElementById('tool' + name.charAt(0).toUpperCase() + name.slice(1))
+                .classList.toggle('active', t === name);
+        });
+        canvas.className = t === 'pan' ? 'mode-pan' : t === 'check' ? 'mode-check' : 'mode-select';
+
+        const hints = {
+            select: 'Клик на полигон — выбор | Перетащи вершину (◉) для перемещения',
+            pan:    'Тащи для панорамирования | Колесо — масштаб',
+            check:  'Кликни на карту для проверки попадания точки в полигоны',
+        };
+        document.getElementById('canvasHint').textContent = hints[t];
+    }
+
+    // ── TABS ──
+    function switchTab(name) {
+        document.querySelectorAll('.rtab').forEach((el, i) => {
+            const tabs = ['vertices', 'check', 'ops'];
+            el.classList.toggle('active', tabs[i] === name);
+        });
+        document.querySelectorAll('.rtab-content').forEach(el => {
+            el.classList.toggle('active', el.id === 'tab-' + name);
+        });
+        if (name === 'ops') populateOpSelects();
+    }
+
+    // ── MODAL ──
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    // ── TOAST ──
+    function toast(msg, type = 'info') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'show ' + type;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.className = '', 2800);
+    }
+
+    // ── STATUS ──
+    function setStatus(ok) {
+        document.getElementById('statusDot').className = 'status-dot ' + (ok ? 'ok' : 'err');
+        document.getElementById('statusText').textContent = ok ? 'подключено' : 'ошибка соединения';
+    }
+
+
+    // ── OPERATIONS ──
+
+    function selectOp(op) {
+        currentOp = op;
+        document.querySelectorAll('.op-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById('opBtn-' + op);
+        if (btn) btn.classList.add('active');
+    }
+
+    function populateOpSelects() {
+        ['opPolyA','opPolyB'].forEach((id, idx) => {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            sel.innerHTML = state.polygons.map(p =>
+                `<option value="${p.id}">${p.name} (#${p.id})</option>`
+            ).join('');
+            if (prev) sel.value = prev;
+            // default: A=first, B=second
+            if (!prev && state.polygons.length > idx) {
+                sel.value = state.polygons[idx].id;
+            }
+        });
+        updateVenn();
+    }
+
+    function updateVenn() {
+        const a = document.getElementById('opPolyA').value;
+        const b = document.getElementById('opPolyB').value;
+        const pa = state.polygons.find(p => p.id == a);
+        const pb = state.polygons.find(p => p.id == b);
+        document.getElementById('vennLabelA').textContent = pa ? pa.name.slice(0,6) : 'A';
+        document.getElementById('vennLabelB').textContent = pb ? pb.name.slice(0,6) : 'B';
+    }
+
+    async function runOperation() {
+        const idA = parseInt(document.getElementById('opPolyA').value);
+        const idB = parseInt(document.getElementById('opPolyB').value);
+        if (!idA || !idB) { toast('Выберите оба полигона', 'error'); return; }
+        if (idA === idB) { toast('Выберите разные полигоны', 'error'); return; }
+
+        try {
+            const data = await apiFetch('/operation', {
+                method: 'POST',
+                body: JSON.stringify({ polygonIdA: idA, polygonIdB: idB, operation: currentOp }),
+            });
+
+            document.getElementById('opEmptyState').style.display = 'none';
+            const box = document.getElementById('opResultBox');
+            const header = document.getElementById('opResultHeader');
+            const body = document.getElementById('opResultBody');
+            const actions = document.getElementById('opResultActions');
+            box.style.display = 'block';
+
+            const opLabels = {
+                intersection: 'Пересечение A ∩ B',
+                union: 'Объединение A ∪ B',
+                difference: 'Разность A ∖ B',
+                symDifference: 'Симм. разность A △ B',
+            };
+
+            const polyA = state.polygons.find(p => p.id === idA);
+            const polyB = state.polygons.find(p => p.id === idB);
+
+            if (currentOp === 'intersection') {
+                if (!data.intersects) {
+                    header.className = 'op-result-header no-intersect';
+                    header.textContent = '✕ Полигоны не пересекаются';
+                    body.innerHTML = `<strong>${polyA?.name}</strong> и <strong>${polyB?.name}</strong> не имеют общих точек.`;
+                    actions.style.display = 'none';
+                    opResultGeoJson = null;
+                    opResultGeom = null;
+                    draw();
+                    return;
+                }
+                header.className = 'op-result-header intersects';
+                header.textContent = '✓ ' + opLabels[currentOp];
+            } else {
+                header.className = 'op-result-header neutral';
+                header.textContent = opLabels[currentOp];
+            }
+
+            opResultGeoJson = data.result ? JSON.stringify(data.result) : null;
+            opResultGeom = data.result ? parseCoordsFromResult(data.result) : null;
+
+            const areaStr = data.area > 0
+                ? `<strong>${data.area.toFixed(6)}</strong> кв. ед.`
+                : '—';
+
+            body.innerHTML = `
+      A: <strong>${polyA?.name || '#'+idA}</strong><br>
+      B: <strong>${polyB?.name || '#'+idB}</strong><br>
+      Пересекаются: <strong>${data.intersects ? 'Да' : 'Нет'}</strong><br>
+      Площадь результата: ${areaStr}
+    `;
+
+            if (opResultGeoJson) {
+                document.getElementById('opGeoJson').textContent = opResultGeoJson;
+                actions.style.display = 'flex';
+            } else {
+                actions.style.display = 'none';
+            }
+
+            draw();
+            toast(opLabels[currentOp] + ' выполнено', 'success');
+        } catch (e) {
+            toast('Ошибка: ' + e.message, 'error');
+        }
+    }
+
+    function parseCoordsFromResult(geojson) {
+        // Returns array of rings arrays (like poly.coords) for drawing
+        // geojson can be Polygon, MultiPolygon, GeometryCollection
+        if (!geojson) return null;
+        const type = geojson.type;
+        if (type === 'Polygon') return [geojson.coordinates];
+        if (type === 'MultiPolygon') return geojson.coordinates;
+        if (type === 'GeometryCollection') {
+            return geojson.geometries
+                .filter(g => g.type === 'Polygon' || g.type === 'MultiPolygon')
+                .flatMap(g => g.type === 'Polygon' ? [g.coordinates] : g.coordinates);
+        }
+        return null;
+    }
+
+    function toggleOpGeoJson() {
+        const el = document.getElementById('opGeoJson');
+        el.classList.toggle('visible');
+    }
+
+    async function saveOpResult() {
+        if (!opResultGeoJson) return;
+        try {
+            const data = await apiFetch('/', { method: 'POST', body: opResultGeoJson });
+            toast(`Сохранено: id=[${data.ids.join(',')}]`, 'success');
+            await loadPolygons();
+            populateOpSelects();
+        } catch (e) {
+            toast('Ошибка сохранения: ' + e.message, 'error');
+        }
+    }
+
+    // ── INIT ──
+    setTool('select');
+    loadPolygons();
+</script>
+</body>
+</html>
