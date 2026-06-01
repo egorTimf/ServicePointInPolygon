@@ -107,6 +107,22 @@ function drawPolygon(ctx, geo, highlight = false) {
 
     const rings = geo.coordinates;
 
+    // --- Заливка: внешнее кольцо + дыры в одном path с правилом even-odd,
+    //     чтобы внутренние кольца (отверстия) оставались ПРОЗРАЧНЫМИ.
+    ctx.beginPath();
+    rings.forEach((ring) => {
+        ring.forEach((pt, i) => {
+            const x = pt[0];
+            const y = transformY(pt[1]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+    });
+    ctx.fillStyle = highlight ? 'rgba(13, 110, 253, 0.15)' : 'rgba(13, 110, 253, 0.08)';
+    ctx.fill('evenodd');
+
+    // --- Контуры рисуем по каждому кольцу отдельно (включая границы дыр).
     rings.forEach((ring, ringIdx) => {
         ctx.beginPath();
         ring.forEach((pt, i) => {
@@ -117,11 +133,12 @@ function drawPolygon(ctx, geo, highlight = false) {
         });
         ctx.closePath();
 
-        ctx.fillStyle = highlight ? 'rgba(13, 110, 253, 0.15)' : 'rgba(13, 110, 253, 0.08)';
-        ctx.fill();
+        const isHole = ringIdx > 0;
         ctx.strokeStyle = highlight ? '#0d6efd' : '#6c757d';
         ctx.lineWidth = highlight ? 2.5 : 1.5;
+        if (isHole) ctx.setLineDash([4, 3]); // границы дыр — пунктиром
         ctx.stroke();
+        ctx.setLineDash([]);
 
         // Вершины
         if (highlight) {
