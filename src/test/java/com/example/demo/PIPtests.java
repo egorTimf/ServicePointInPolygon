@@ -6,17 +6,13 @@ import org.locationtech.jts.geom.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PointInPolygonTests {
-
-    // проверка пограничных случаев на простом квадрате
-    GeometryFactory geometryFactory = new GeometryFactory();
-
-    // Создаём координаты
+    GeometryFactory geometryFactory = new GeometryFactory()
     Coordinate[] coords = new Coordinate[] {
             new Coordinate(0, 0),
             new Coordinate(10, 0),
             new Coordinate(10, 10),
             new Coordinate(0, 10),
-            new Coordinate(0, 0)  // закрываем полигон
+            new Coordinate(0, 0)
     };
 
     // Создаём полигон
