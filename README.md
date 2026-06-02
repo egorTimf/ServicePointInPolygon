@@ -81,7 +81,7 @@ docker compose up --build
    ```bash
    ./gradlew bootRun
    ```
-4. Откройте <http://localhost:8080/>.
+4. Откройте <http://localhost:8082/>.
 
 Схема таблицы создаётся автоматически (`spring.jpa.hibernate.ddl-auto=update`).
 
