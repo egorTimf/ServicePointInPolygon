@@ -52,7 +52,6 @@ public class PolygonEntity {
         updatedAt = LocalDateTime.now();
     }
 
-    // ===== ГЕТТЕРЫ =====
     public Integer getId() { return id; }
     public String getName() { return name; }
     public String getCoordsJson() { return coordsJson; }
@@ -65,7 +64,6 @@ public class PolygonEntity {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
-    // ===== СЕТТЕРЫ =====
     public void setId(Integer id) { this.id = id; }
     public void setName(String name) { this.name = name; }
     public void setCoordsJson(String coordsJson) { this.coordsJson = coordsJson; }

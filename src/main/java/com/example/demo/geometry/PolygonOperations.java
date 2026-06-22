@@ -6,16 +6,6 @@ import org.locationtech.jts.operation.valid.IsValidOp;
 
 import java.util.*;
 
-/**
- * Сервис геометрических операций над полигонами.
- *
- * Политика обработки вырожденных случаев:
- * - Невалидные полигоны исправляются через buffer(0) перед операцией.
- * - Если результат операции — не Polygon/MultiPolygon (точка, линия, пустая геометрия),
- *   возвращается OperationResult с empty=true и пустым resultGeoJson.
- * - Буферизация с distance=0 используется только для починки геометрии,
- *   для пользовательской буферизации используется buffer(distance > 0).
- */
 public class PolygonOperations {
 
     public enum Operation {
@@ -24,12 +14,12 @@ public class PolygonOperations {
 
     public static class OperationResult {
         public final Operation operation;
-        public final boolean intersects;   // только для INTERSECTION
-        public final boolean empty;        // результат пуст или вырожден
+        public final boolean intersects; 
+        public final boolean empty;        
         public final double area;
-        public final String resultGeoJson; // null если empty=true
-        public final Geometry resultGeom;  // null если empty=true
-        public final String validationWarning; // если входные данные были починены
+        public final String resultGeoJson; 
+        public final Geometry resultGeom;  
+        public final String validationWarning; 
 
         private OperationResult(Builder b) {
             this.operation = b.operation;
@@ -63,10 +53,6 @@ public class PolygonOperations {
 
     private final GeoJsonWriter geoJsonWriter = new GeoJsonWriter();
 
-    // ──────────────────────────────────────────────
-    // ПУБЛИЧНЫЕ МЕТОДЫ
-    // ──────────────────────────────────────────────
-
     public OperationResult intersection(Geometry a, Geometry b) {
         ValidationResult val = validateAndRepair(a, b);
         a = val.geomA;
@@ -74,7 +60,6 @@ public class PolygonOperations {
 
         boolean bboxIntersects = a.getEnvelopeInternal().intersects(b.getEnvelopeInternal());
         if (!bboxIntersects) {
-            // Быстрый выход: bbox не пересекаются → точно нет пересечения
             return new OperationResult.Builder(Operation.INTERSECTION)
                     .intersects(false)
                     .empty(true)
@@ -106,14 +91,7 @@ public class PolygonOperations {
         return buildResult(Operation.SYM_DIFFERENCE, result, null, val.warning);
     }
 
-    /**
-     * Буферизация: создаёт новую геометрию, расширяя/сужая полигон на distance единиц.
-     * distance > 0 → расширение (offset наружу)
-     * distance < 0 → сужение (offset внутрь), может вернуть пустой результат
-     * distance = 0 → только починка геометрии
-     *
-     * @param segments количество сегментов на четверть окружности для округлённых углов (по умолч. 16)
-     */
+
     public OperationResult buffer(Geometry geom, double distance, int segments) {
         String warning = null;
         if (!geom.isValid()) {
@@ -129,15 +107,6 @@ public class PolygonOperations {
         return buffer(geom, distance, 16);
     }
 
-    // ──────────────────────────────────────────────
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-    // ──────────────────────────────────────────────
-
-    /**
-     * Проверяет валидность обоих полигонов и при необходимости чинит через buffer(0).
-     * buffer(0) — стандартный JTS-трюк: перестраивает топологию без изменения формы.
-     * Исправляет: самопересечения, дублирующиеся точки, неправильный обход колец.
-     */
     private ValidationResult validateAndRepair(Geometry a, Geometry b) {
         StringBuilder warning = new StringBuilder();
 

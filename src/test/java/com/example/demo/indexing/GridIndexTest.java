@@ -1,6 +1,3 @@
-Here's the code with all comments removed:
-
-```java
 package com.example.demo.indexing;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -226,4 +223,3 @@ class GridIndexTest {
         assertFalse(index.contains(pt(5, 5), 1));
     }
 }
-```

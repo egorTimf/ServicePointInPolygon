@@ -22,8 +22,6 @@ public class GridIndex {
         this.cellSize = cellSize;
     }
 
-    // ── вспомогательные ─────────────────────────────────────────
-
     private String getCell(double x, double y) {
         int cellX = (int) Math.floor(x / cellSize);
         int cellY = (int) Math.floor(y / cellSize);
@@ -66,8 +64,6 @@ public class GridIndex {
             }
         }
     }
-
-    // ── публичные методы ─────────────────────────────────────────
 
     public void insert(Polygon polygon, int id) {
         writeLock.lock();

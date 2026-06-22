@@ -8,19 +8,6 @@ import org.locationtech.jts.io.WKTReader;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Парсер WKT (Well-Known Text) строк.
- *
- * Поддерживаемые форматы:
- *   POLYGON ((x y, x y, ...))
- *   POLYGON ((x y, ...), (x y, ...))          — с отверстиями
- *   MULTIPOLYGON (((x y, ...)), ((x y, ...))) — мультиполигон
- *   GEOMETRYCOLLECTION (POLYGON (...), ...)   — коллекция
- *
- * Пример использования:
- *   WktParser parser = new WktParser("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))");
- *   List<Polygon> polygons = parser.getPolygons();
- */
 public class WktParser {
 
     @Getter
@@ -63,7 +50,5 @@ public class WktParser {
                 extractGeometries(geom.getGeometryN(i));
             }
         }
-        // LineString и другие типы намеренно игнорируются —
-        // сервис работает только с полигонами и точками
     }
 }

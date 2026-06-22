@@ -127,8 +127,7 @@ class PointInPolygonTests {
         Point point = new GeometryFactory().createPoint(new Coordinate(2.893434321233, 3));
         assertFalse(PointInPolygon.contains(clockPolygon, point));
     }
-
-    // ========================= // POLYGON WITH HOLE // =========================
+    
     private final Polygon polygonWithHole = new GeometryFactory().createPolygon(
             new GeometryFactory().createLinearRing(new Coordinate[]{
                     new Coordinate(0, 0),

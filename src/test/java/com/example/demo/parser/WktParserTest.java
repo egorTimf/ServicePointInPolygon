@@ -63,14 +63,12 @@ class WktParserTest {
 
     @Test
     void linestring_returnsEmptyPolygons() {
-        // LineString не является полигоном — должен вернуть пустой список
         WktParser p = new WktParser("LINESTRING (0 0, 1 1, 2 2)");
         assertTrue(p.getPolygons().isEmpty());
     }
 
     @Test
     void realWorldCoordinates() {
-        // Реальные географические координаты (Москва приблизительно)
         WktParser p = new WktParser(
                 "POLYGON ((37.3 55.5, 37.9 55.5, 37.9 55.9, 37.3 55.9, 37.3 55.5))");
         assertEquals(1, p.getPolygons().size());

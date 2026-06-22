@@ -1,4 +1,4 @@
-// ==================== КОНФИГУРАЦИЯ ====================
+
 const API_URL = '/polygons';
 const CANVAS_SIZE = 500;
 let loadedPolygons = {};
@@ -7,7 +7,6 @@ let editorMode = 'move';
 let selectedVertexIndex = null;
 let selectedRingIndex = 0;
 
-// ==================== API ====================
 async function apiUploadPolygons(geoJson) {
     const res = await fetch(API_URL + '/', {
         method: 'POST',
@@ -62,7 +61,6 @@ async function apiRemoveVertex(id, ringIndex, vertexIndex) {
     if (!res.ok) throw new Error(await res.text());
 }
 
-// ==================== CANVAS ====================
 function getCanvasContext() {
     return document.getElementById('viz-canvas').getContext('2d');
 }
@@ -97,8 +95,6 @@ function drawAllPolygons() {
         const isEditing = editingPolygonId === parseInt(id);
         drawPolygon(ctx, geo, isEditing);
     });
-
-    // Обновляем подсказку
     updateCanvasHint();
 }
 
@@ -107,8 +103,6 @@ function drawPolygon(ctx, geo, highlight = false) {
 
     const rings = geo.coordinates;
 
-    // --- Заливка: внешнее кольцо + дыры в одном path с правилом even-odd,
-    //     чтобы внутренние кольца (отверстия) оставались ПРОЗРАЧНЫМИ.
     ctx.beginPath();
     rings.forEach((ring) => {
         ring.forEach((pt, i) => {
@@ -122,7 +116,6 @@ function drawPolygon(ctx, geo, highlight = false) {
     ctx.fillStyle = highlight ? 'rgba(13, 110, 253, 0.15)' : 'rgba(13, 110, 253, 0.08)';
     ctx.fill('evenodd');
 
-    // --- Контуры рисуем по каждому кольцу отдельно (включая границы дыр).
     rings.forEach((ring, ringIdx) => {
         ctx.beginPath();
         ring.forEach((pt, i) => {
@@ -136,7 +129,7 @@ function drawPolygon(ctx, geo, highlight = false) {
         const isHole = ringIdx > 0;
         ctx.strokeStyle = highlight ? '#0d6efd' : '#6c757d';
         ctx.lineWidth = highlight ? 2.5 : 1.5;
-        if (isHole) ctx.setLineDash([4, 3]); // границы дыр — пунктиром
+        if (isHole) ctx.setLineDash([4, 3]); 
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -199,7 +192,6 @@ function updateCanvasHint() {
     }
 }
 
-// ==================== ОБРАБОТЧИК CANVAS ====================
 async function handleCanvasClick(event) {
     const canvas = document.getElementById('viz-canvas');
     const rect = canvas.getBoundingClientRect();
@@ -217,13 +209,11 @@ async function handleCanvasClick(event) {
         if (!geo) return;
 
         if (editorMode === 'add') {
-            // Добавляем вершину
             await apiAddVertex(editingPolygonId, 0, geo.coordinates[0].length - 1, logicalX, logicalY);
             await loadPolygons();
             openEditor(editingPolygonId);
         }
         else if (editorMode === 'delete') {
-            // Ищем ближайшую вершину
             const nearest = findNearestVertex(geo, logicalX, logicalY, 10);
             if (nearest) {
                 if (geo.coordinates[0].length <= 3) {
@@ -252,7 +242,6 @@ async function handleCanvasClick(event) {
                     renderVertexList();
                 }
             } else if (selectedVertexIndex !== null) {
-                // Кликнули в пустое место — перемещаем выбранную вершину
                 await apiMoveVertex(editingPolygonId, 0, selectedVertexIndex, logicalX, logicalY);
                 selectedVertexIndex = null;
                 await loadPolygons();
@@ -304,7 +293,6 @@ function findNearestVertex(geo, x, y, threshold) {
     return nearest;
 }
 
-// ==================== UI ====================
 function toggleTheme() {
     const body = document.body;
     body.setAttribute('data-theme', body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
@@ -465,7 +453,6 @@ async function checkPoints() {
     }
 }
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', () => {
     drawGrid();
     loadPolygons();

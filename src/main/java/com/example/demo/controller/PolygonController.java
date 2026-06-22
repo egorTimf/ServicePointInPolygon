@@ -37,7 +37,6 @@ public class PolygonController {
     private final GeometryFactory geometryFactory = new GeometryFactory();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // ==================== ПОЛУЧЕНИЕ ВСЕХ ====================
     @GetMapping("/")
     public ResponseEntity<List<PolygonEntity>> getAllPolygons() {
         return ResponseEntity.ok(polygonRepository.findAll());
@@ -371,7 +370,6 @@ public class PolygonController {
                 return buildOperationResponse(operation, idA, null, result);
             }
 
-            // ── БИНАРНЫЕ ОПЕРАЦИИ (два полигона) ────────────────────
             Integer idA = ((Number) request.get("polygonIdA")).intValue();
             Integer idB = ((Number) request.get("polygonIdB")).intValue();
 
