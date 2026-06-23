@@ -128,10 +128,8 @@ public class PolygonOperations {
         return new ValidationResult(a, b, warning.length() > 0 ? warning.toString().trim() : null);
     }
 
-    private OperationResult buildResult(Operation op, Geometry result,
-                                        Boolean intersects, String warning) {
-        OperationResult.Builder builder = new OperationResult.Builder(op)
-                .validationWarning(warning);
+    private OperationResult buildResult(Operation op, Geometry result, Boolean intersects, String warning) {
+        OperationResult.Builder builder = new OperationResult.Builder(op).validationWarning(warning);
 
         if (intersects != null) {
             builder.intersects(intersects);

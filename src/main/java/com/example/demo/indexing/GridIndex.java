@@ -22,6 +22,8 @@ public class GridIndex {
         this.cellSize = cellSize;
     }
 
+    // ── вспомогательные ─────────────────────────────────────────
+
     private String getCell(double x, double y) {
         int cellX = (int) Math.floor(x / cellSize);
         int cellY = (int) Math.floor(y / cellSize);
@@ -65,6 +67,8 @@ public class GridIndex {
         }
     }
 
+    // ── публичные методы ─────────────────────────────────────────
+
     public void insert(Polygon polygon, int id) {
         writeLock.lock();
         try {
@@ -105,6 +109,28 @@ public class GridIndex {
             if (cellIds == null || !cellIds.contains(id)) return false;
 
             return PointInPolygon.contains(polygon, point);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    public List<Integer> queryContaining(Point point) {
+        readLock.lock();
+        try {
+            String key = getCell(point.getX(), point.getY());
+            Set<Integer> cellIds = grid.get(key);
+            if (cellIds == null || cellIds.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<Integer> result = new ArrayList<>();
+            for (Integer id : cellIds) {
+                Polygon polygon = idPolygon.get(id);
+                if (polygon != null && PointInPolygon.contains(polygon, point)) {
+                    result.add(id);
+                }
+            }
+            return result;
         } finally {
             readLock.unlock();
         }

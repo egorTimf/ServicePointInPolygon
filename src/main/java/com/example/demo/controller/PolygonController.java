@@ -31,12 +31,16 @@ public class PolygonController {
     @Autowired
     private PolygonService polygonService;
 
+    // Общий бин: тот же индекс, что наполняет GridIndexWarmup при старте.
+    @Autowired
+    private GridIndex gridIndex;
+
     private final PolygonValidator polygonValidator = new PolygonValidator();
     private final PolygonOperations polygonOperations = new PolygonOperations();
-    private final GridIndex gridIndex = new GridIndex(50);
     private final GeometryFactory geometryFactory = new GeometryFactory();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // ==================== ПОЛУЧЕНИЕ ВСЕХ ====================
     @GetMapping("/")
     public ResponseEntity<List<PolygonEntity>> getAllPolygons() {
         return ResponseEntity.ok(polygonRepository.findAll());
@@ -189,32 +193,46 @@ public class PolygonController {
 
     @PostMapping("/check-multiple")
     public ResponseEntity<?> checkMultiple(@RequestBody CheckMultipleRequest request) {
-        List<PolygonEntity> entities = polygonRepository.findAllById(request.getPolygonIds());
+        Point point = geometryFactory.createPoint(
+                new Coordinate(request.getX(), request.getY()));
 
+        // Быстрый путь: спрашиваем индекс, какие полигоны из ячейки точки её содержат.
+        // Индекс уже отсёк всё, что вне ячейки, и выполнил точную проверку.
+        List<Integer> insideIds = gridIndex.queryContaining(point);
+
+        // Ограничиваем ответ теми id, о которых спросил клиент.
+        Set<Integer> requested = new HashSet<>(request.getPolygonIds());
+
+        // Если индекс не пуст — отвечаем по нему (для каждого запрошенного id: внутри или нет).
+        if (gridIndex.size() > 0) {
+            Set<Integer> insideSet = new HashSet<>(insideIds);
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (Integer id : request.getPolygonIds()) {
+                results.add(Map.of("polygonId", id, "inside", insideSet.contains(id)));
+            }
+            return ResponseEntity.ok(results);
+        }
+
+        // Fallback: индекс пуст (например, после рестарта приложения — индекс
+        // живёт в памяти и пока не прогревается из БД). Тогда читаем геометрию из БД.
+        List<PolygonEntity> entities = polygonRepository.findAllById(request.getPolygonIds());
         if (entities.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        Point point = geometryFactory.createPoint(
-                new Coordinate(request.getX(), request.getY()));
-
         List<Map<String, Object>> results = new ArrayList<>();
-
         for (PolygonEntity entity : entities) {
             try {
                 GeoJsonParser geoJson = new GeoJsonParser(entity.getCoordsJson(), 0);
                 List<Polygon> polygons = geoJson.getPolygons();
-
                 if (!polygons.isEmpty()) {
-                    Polygon polygon = polygons.get(0);
-                    boolean isInside = PointInPolygon.contains(polygon, point);
+                    boolean isInside = PointInPolygon.contains(polygons.get(0), point);
                     results.add(Map.of("polygonId", entity.getId(), "inside", isInside));
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
-
         return ResponseEntity.ok(results);
     }
 
@@ -370,6 +388,7 @@ public class PolygonController {
                 return buildOperationResponse(operation, idA, null, result);
             }
 
+            // ── БИНАРНЫЕ ОПЕРАЦИИ (два полигона) ────────────────────
             Integer idA = ((Number) request.get("polygonIdA")).intValue();
             Integer idB = ((Number) request.get("polygonIdB")).intValue();
 

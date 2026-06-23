@@ -22,7 +22,6 @@ public class PolygonService {
 
     private final GeometryFactory geometryFactory = new GeometryFactory();
 
-    // Создание из JTS Polygon
     public Integer createPolygonFromGeometry(Polygon jtsPolygon, String geoJson) throws Exception {
         PolygonDataDto data = convertJtsToDto(jtsPolygon);
         data.recalculateBounds();
@@ -39,7 +38,6 @@ public class PolygonService {
         return repository.save(entity).getId();
     }
 
-    // Создание из GeoJSON строки
     public Integer createPolygon(String geoJsonString) throws Exception {
         PolygonDataDto data = objectMapper.readValue(geoJsonString, PolygonDataDto.class);
         data.recalculateBounds();
@@ -58,15 +56,10 @@ public class PolygonService {
         return repository.save(entity).getId();
     }
 
-    // Получить все полигоны
     public List<PolygonEntity> getAllPolygons() {
         return repository.findAllByOrderByUpdatedAtDesc();
     }
 
-    // Перемещение вершины
-    // Правило GeoJSON: первая и последняя вершина кольца — одна и та же точка.
-    // Поэтому: менять последнюю вершину напрямую запрещено (она зеркало первой),
-    // а смена первой автоматически обновляет последнюю.
     public void moveVertex(Integer polygonId, int ringIndex, int vertexIndex,
                            double newX, double newY) throws Exception {
         PolygonEntity entity = repository.findById(polygonId)
@@ -97,10 +90,6 @@ public class PolygonService {
         repository.save(entity);
     }
 
-    // Добавление вершины после указанного индекса.
-    // afterIndex — индекс существующей вершины, после которой вставляем новую.
-    // Диапазон допустимых значений: 0 .. size-2 (последняя вершина — замыкающий дубликат,
-    // вставка после неё не имеет смысла).
     public void addVertex(Integer polygonId, int ringIndex, int afterIndex,
                           double x, double y) throws Exception {
         PolygonEntity entity = repository.findById(polygonId).orElseThrow();
@@ -122,10 +111,6 @@ public class PolygonService {
         repository.save(entity);
     }
 
-    // Удаление вершины.
-    // Нельзя удалять первую (индекс 0) или последнюю (замыкающий дубликат) вершины напрямую —
-    // это нарушит замкнутость кольца.
-    // Минимальное кольцо GeoJSON: 4 точки (3 уникальных + замыкающий дубликат).
     public void removeVertex(Integer polygonId, int ringIndex, int vertexIndex) throws Exception {
         PolygonEntity entity = repository.findById(polygonId).orElseThrow();
         PolygonDataDto data = getPolygonData(entity);
@@ -146,7 +131,6 @@ public class PolygonService {
 
         ring.remove(vertexIndex);
 
-        // Если удалили первую вершину — новая первая должна стать и последней
         if (vertexIndex == 0) {
             double[] newFirst = ring.get(0);
             ring.set(ring.size() - 1, new double[]{newFirst[0], newFirst[1]});
@@ -157,19 +141,15 @@ public class PolygonService {
         repository.save(entity);
     }
 
-    // Удаление полигона
     public void deletePolygon(Integer id) {
         repository.deleteById(id);
     }
 
-    // Получить DTO из entity
     public PolygonDataDto getPolygonData(PolygonEntity entity) throws Exception {
-        String jsonData = entity.getPolygonData() != null ?
-                entity.getPolygonData() : entity.getCoordsJson();
+        String jsonData = entity.getCoordsJson();
         return objectMapper.readValue(jsonData, PolygonDataDto.class);
     }
 
-    // Конвертация JTS Polygon -> DTO
     private PolygonDataDto convertJtsToDto(Polygon jtsPolygon) {
         PolygonDataDto dto = new PolygonDataDto();
         dto.setType("Polygon");
@@ -183,7 +163,6 @@ public class PolygonService {
         }
         allRings.add(outerRing);
 
-        // Внутренние кольца (дыры)
         for (int i = 0; i < jtsPolygon.getNumInteriorRing(); i++) {
             List<double[]> innerRing = new ArrayList<>();
             for (Coordinate coord : jtsPolygon.getInteriorRingN(i).getCoordinates()) {

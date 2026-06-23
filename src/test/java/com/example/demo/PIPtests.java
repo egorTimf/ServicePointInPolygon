@@ -6,7 +6,7 @@ import org.locationtech.jts.geom.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PointInPolygonTests {
-    GeometryFactory geometryFactory = new GeometryFactory()
+    GeometryFactory geometryFactory = new GeometryFactory();
     Coordinate[] coords = new Coordinate[] {
             new Coordinate(0, 0),
             new Coordinate(10, 0),
